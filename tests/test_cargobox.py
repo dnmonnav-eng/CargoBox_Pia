@@ -385,3 +385,36 @@ def test_dominio_devolucion_y_perdida():
     paq3.llegar_a_centro_destino()
     paq3.enviar_a_punto_recoleccion()
     assert paq3.estado == EstadoPaquete.EN_PUNTO_RECOLECCION
+
+from src.domain import Paquete, GuiaUnica, LimiteFisicoExcedido
+
+def test_limites_fisicos_extremos():
+    """Valida restricciones de negocio ante valores límite o imposibles."""
+    # Peso cero o negativo
+    try:
+        Paquete(guia=GuiaUnica("ERR-01"), peso_kg=0.0, dimension_max_m=0.5)
+        assert False
+    except LimiteFisicoExcedido:
+        assert True
+
+    # Medida excedida de 1.5 metros
+    try:
+        Paquete(guia=GuiaUnica("ERR-02"), peso_kg=5.0, dimension_max_m=2.0)
+        assert False
+    except LimiteFisicoExcedido:
+        assert True
+
+from datetime import datetime, timedelta
+
+def test_regla_24_horas_en_transito():
+    """Valida que un paquete en tránsito con más de 24 horas active la regla de pérdida/alerta."""
+    p = Paquete(guia=GuiaUnica("GUIA-24H"), peso_kg=2.0, dimension_max_m=0.5)
+    p.clasificar()
+    p.despachar_a_transito()
+    assert p.estado == EstadoPaquete.EN_TRANSITO
+    
+    # Simular que transcurrieron más de 24 horas sin movimiento
+    p.verificar_tiempo_transito(horas_transcurridas=25.5)
+    
+    # Por regla, debe pasar a estado PERDIDO (o la consecuencia que dicte tu lógica)
+    assert p.estado == EstadoPaquete.PERDIDO

@@ -1,0 +1,21 @@
+﻿recurso_id,descripcion,precio_mxn,capacidad_o_stock,habilitado
+CAR-P001,Paquete pequeño 01,543.00,13,1
+CAR-P002,Paquete mediano 02,614.00,16,1
+CAR-P003,Paquete grande 03,685.00,19,1
+CAR-P004,Almacenaje 04,756.00,22,1
+CAR-P005,Paquete pequeño 05,827.00,25,1
+CAR-P006,Paquete mediano 06,898.00,28,1
+CAR-P007,Paquete grande 07,969.00,31,1
+CAR-P008,Almacenaje 08,1040.00,34,1
+CAR-P009,Paquete pequeño 09,1111.00,37,1
+CAR-P010,Paquete mediano 10,1182.00,40,1
+CAR-P011,Paquete grande 11,1253.00,43,0
+CAR-P012,Almacenaje 12,1324.00,46,1
+CAR-P013,Paquete pequeño 13,1395.00,49,1
+CAR-P014,Paquete mediano 14,1466.00,52,1
+CAR-P015,Paquete grande 15,1537.00,10,1
+CAR-P016,Almacenaje 16,1608.00,13,1
+CAR-P017,Paquete pequeño 17,1679.00,16,1
+CAR-P018,Paquete mediano 18,1750.00,19,1
+CAR-P019,Paquete grande 19,1821.00,22,1
+CAR-P020,Almacenaje 20,1892.00,25,1

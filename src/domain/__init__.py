@@ -167,3 +167,11 @@ class Paquete:
             raise InvalidStateTransition("No es posible declarar como perdido un envío que ya fue entregado exitosamente.")
         self.estado = EstadoPaquete.PERDIDO
         self._registrar_evento(PerdidaDeclarada(guia=self.guia.codigo))
+
+    def verificar_tiempo_transito(self, horas_transcurridas: float):
+        """
+        REGLA DE NEGOCIO: Si un paquete pasa más de 24 horas sin movimiento 
+        estando en estado EN_TRANSITO, se declara como PERDIDO o se marca alerta.
+        """
+        if self.estado == EstadoPaquete.EN_TRANSITO and horas_transcurridas > 24.0:
+            self.declarar_perdida()
