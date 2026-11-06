@@ -118,7 +118,7 @@ class CargoBoxService:
         return paquete
 
     def completar_entrega_paquete(self, db: Session, guia: str, evidencia: str) -> PaqueteModel:
-        if not evidencia:
+        if not evidencia or not evidencia.strip():
             raise SinEvidenciaPOD("Falta la evidencia POD requerida.")
             
         paquete = self.obtener_paquete(db, guia)
