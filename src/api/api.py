@@ -1,6 +1,9 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, Depends
+from sqlalchemy.orm import Session
+from pydantic import BaseModel, Field
+import unicodedata
 import uuid
+
 from src.application.service import CargoBoxService
 from src.domain import (
     LimiteFisicoExcedido,
@@ -9,6 +12,10 @@ from src.domain import (
     InvalidStateTransition,
     CargoBoxDomainError
 )
+from src.infrastructure.database import engine, Base, get_db
+from src.infrastructure.models import PaqueteModel
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="CargoBox API",
@@ -19,17 +26,29 @@ app = FastAPI(
 service = CargoBoxService()
 
 class RegistroPaqueteRequest(BaseModel):
-    peso_kg: float
-    largo_m: float
-    ancho_m: float
-    alto_m: float
-    correo_cliente: str
+    peso_kg: float = Field(..., gt=0)
+    largo_m: float = Field(..., gt=0)
+    ancho_m: float = Field(..., gt=0)
+    alto_m: float = Field(..., gt=0)
+    telefono_cliente: str = Field(..., pattern=r"^\d{10}$")
 
 class EntregaRequest(BaseModel):
-    evidencia: str
+    evidencia: str = Field(..., description="Escribe la evidencia (Firma digital / Fotografía del paquete)")
 
 class IncidenciaRequest(BaseModel):
-    tipo_incidencia: str  
+    tipo_incidencia: str = Field(
+        ..., 
+        description="Escribe EXACTAMENTE una de estas opciones: 'direccion_incorrecta', 'paquete_danado', 'perdida', 'rechazo'"
+    )
+
+def normalizar_texto(texto: str) -> str:
+    if not texto:
+        return ""
+    texto_sin_acento = ''.join(
+        c for c in unicodedata.normalize('NFD', texto)
+        if unicodedata.category(c) != 'Mn'
+    )
+    return texto_sin_acento.lower().strip().replace(" ", "_")
 
 
 @app.get("/")
@@ -38,42 +57,32 @@ def inicio():
 
 
 @app.post("/paquetes/")
-def registrar_paquete(datos: RegistroPaqueteRequest):
-    """
-    Valida los límites físicos (máximo 30 kg o 1.5 metros por lado) y genera la Guía Única.
-    """
+def registrar_paquete(datos: RegistroPaqueteRequest, db: Session = Depends(get_db)):
     try:
-        dimension_maxima = max(datos.largo_m, datos.ancho_m, datos.alto_m)
-        
         guia_generada = f"CBX-{uuid.uuid4().hex[:8].upper()}"
-        
         paquete = service.registrar_envio(
+            db=db,
             codigo_guia=guia_generada, 
             peso_kg=datos.peso_kg, 
-            dimension_max_m=dimension_maxima
+            largo_m=datos.largo_m,
+            ancho_m=datos.ancho_m,
+            alto_m=datos.alto_m,
+            telefono_cliente=datos.telefono_cliente
         )
-        
         return {
-            "mensaje": f"Paquete recibido con éxito, guía única generada: {paquete.guia.codigo}"
+            "mensaje": f"Paquete recibido con éxito, guía única generada: {paquete.guia}."
         }
-        
     except LimiteFisicoExcedido:
-        raise HTTPException(
-            status_code=422, 
-            detail="El paquete excede los límites permitidos (máximo 30 kg o 1.5 metros por lado). No se puede recibir."
-        )
+        raise HTTPException(status_code=422, detail="El paquete excede los límites permitidos (máx 30 kg o 1.5 m por lado).")
     except CargoBoxDomainError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @app.post("/paquetes/{guia}/clasificar")
-def clasificar_paquete(guia: str):
-    """Centro de Distribución de Origen: Clasificar paquete y registrar estado CLASIFICADO."""
+def clasificar_paquete(guia: str, db: Session = Depends(get_db)):
     try:
-        paquete = service.avanzar_a_clasificado(guia)
-        return {
-            "mensaje": f"El paquete con la guía {paquete.guia.codigo} ha sido clasificado correctamente en el centro de distribución de origen."
-        }
+        paquete = service.avanzar_estado(db, guia, "CLASIFICADO")
+        return {"mensaje": f"El paquete con la guía {paquete.guia} ha sido clasificado correctamente."}
     except (InvalidStateTransition, CargoBoxDomainError) as e:
         raise HTTPException(status_code=409, detail=str(e))
     except ValueError:
@@ -81,13 +90,10 @@ def clasificar_paquete(guia: str):
 
 
 @app.post("/paquetes/{guia}/despachar-transito")
-def despachar_transito(guia: str):
-    """Despachar paquete y registrar estado EN TRÁNSITO a CD Destino."""
+def despachar_transito(guia: str, db: Session = Depends(get_db)):
     try:
-        paquete = service.despachar_a_transito(guia)
-        return {
-            "mensaje": f"El paquete con la guía {paquete.guia.codigo} se encuentra ahora en Tránsito al Centro de Distribución Destino."
-        }
+        paquete = service.avanzar_estado(db, guia, "EN_TRANSITO")
+        return {"mensaje": f"El paquete con la guía {paquete.guia} se encuentra en Tránsito al Centro de Distribución Destino."}
     except (InvalidStateTransition, CargoBoxDomainError) as e:
         raise HTTPException(status_code=409, detail=str(e))
     except ValueError:
@@ -95,13 +101,10 @@ def despachar_transito(guia: str):
 
 
 @app.post("/paquetes/{guia}/centro-destino")
-def llegar_centro_destino(guia: str):
-    """Recepción CD Destino y registrar estado CENTRO_DESTINO."""
+def llegar_centro_destino(guia: str, db: Session = Depends(get_db)):
     try:
-        paquete = service.llegar_a_centro_destino(guia)
-        return {
-            "mensaje": f"El paquete con la guía {paquete.guia.codigo} ha llegado al Centro de Distribución Destino.",
-        }
+        paquete = service.avanzar_estado(db, guia, "CENTRO_DESTINO")
+        return {"mensaje": f"El paquete con la guía {paquete.guia} ha llegado al Centro de Distribución Destino."}
     except (InvalidStateTransition, CargoBoxDomainError) as e:
         raise HTTPException(status_code=409, detail=str(e))
     except ValueError:
@@ -109,13 +112,10 @@ def llegar_centro_destino(guia: str):
 
 
 @app.post("/paquetes/{guia}/iniciar-reparto")
-def iniciar_reparto(guia: str):
-    """Repartidor: Cargar unidad y registrar estado EN REPARTO."""
+def iniciar_reparto(guia: str, db: Session = Depends(get_db)):
     try:
-        paquete = service.iniciar_reparto(guia)
-        return {
-            "mensaje": f"El paquete con la guía {paquete.guia.codigo} se encuentra en Reparto.",
-        }
+        paquete = service.avanzar_estado(db, guia, "EN_REPARTO")
+        return {"mensaje": f"El paquete con la guía {paquete.guia} se encuentra en Reparto."}
     except (InvalidStateTransition, CargoBoxDomainError) as e:
         raise HTTPException(status_code=409, detail=str(e))
     except ValueError:
@@ -123,18 +123,19 @@ def iniciar_reparto(guia: str):
 
 
 @app.post("/paquetes/{guia}/intentos-fallidos")
-def registrar_intento_fallido(guia: str):
-    """Repartidor: Registra ausencia del destinatario (Intento 1 o 2)."""
+def registrar_intento_fallido(guia: str, db: Session = Depends(get_db)):
+    """Registra intento fallido. Al llegar al 2do intento, el paquete se transfiere al Punto de Recolección / Resguardo más cercano."""
     try:
-        paquete = service.registrar_intento_entrega(guia)
+        paquete = service.registrar_intento_entrega(db, guia)
+        if paquete.intentos_entrega >= 2:
+            return {
+                "mensaje": f"Se registró el 2do intento fallido. Se ha alcanzado el límite de intentos: el paquete ha sido transferido a resguardo en el Punto de Recolección."
+            }
         return {
-            "mensaje": f"Se registró visita fallida para la guía {paquete.guia.codigo}. Intentos acumulados: {paquete.intentos_entrega}.",
+            "mensaje": f"Visita fallida registrada (Intento {paquete.intentos_entrega} de 2)."
         }
-    except LimiteReintentosExcedido:
-        raise HTTPException(
-            status_code=422, 
-            detail="Se alcanzó el límite de 2 intentos. El paquete fue transferido a resguardo en el punto de recolección."
-        )
+    except LimiteReintentosExcedido as e:
+        raise HTTPException(status_code=422, detail="Se alcanzó el límite de 2 intentos. El paquete ya se encuentra en resguardo (Punto de Recolección).")
     except (InvalidStateTransition, CargoBoxDomainError) as e:
         raise HTTPException(status_code=409, detail=str(e))
     except ValueError:
@@ -142,41 +143,60 @@ def registrar_intento_fallido(guia: str):
 
 
 @app.post("/paquetes/{guia}/incidencias")
-def registrar_incidencia_entrega(guia: str, datos: IncidenciaRequest):
-    """Soporte y Operaciones: Dirección incorrecta, Daño, Pérdida."""
+def registrar_incidencia_entrega(guia: str, datos: IncidenciaRequest, db: Session = Depends(get_db)):
+    """
+    Escribe la incidencia. Opciones válidas:
+    - 'direccion_incorrecta' 
+    - 'paquete_danado' 
+    - 'perdida' 
+    - 'rechazo' 
+    """
     try:
-        paquete = service.obtener_paquete(guia)
-        if not paquete:
-            raise HTTPException(status_code=404, detail="No se encontró un paquete con esa guía.")
+        limpio = normalizar_texto(datos.tipo_incidencia)
         
-        incidencia = datos.tipo_incidencia.lower()
+        opciones_validas = ["direccion_incorrecta", "paquete_danado", "perdida", "rechazo"]
+        if limpio not in opciones_validas:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Incidencia no válida. Debes escribir exactamente una de estas opciones: {opciones_validas}"
+            )
+
+        paquete = service.procesar_incidencia(db, guia, limpio)
         
-        if incidencia == "direccion_incorrecta":
-            return {"mensaje": f"Incidencia registrada para la guía {guia}: Dirección incorrecta. Soporte contactará al cliente en un plazo menor a 4 horas."}
-        elif incidencia == "paquete_danado":
-            return {"mensaje": f"Incidencia registrada para la guía {guia}: Paquete dañado. Turnado a Supervisor de Calidad para generar reporte y evaluar compensación."}
-        elif incidencia == "perdida_rechazo":
-            return {"mensaje": f"Incidencia registrada para la guía {guia}: Pérdida o rechazo prolongado. Se escaló a devolución o cancelación."}
-        else:
-            return {"mensaje": f"Incidencia general registrada para la guía {guia}: {datos.tipo_incidencia}."}
+        if limpio == "direccion_incorrecta":
+            return {
+                "mensaje": f"Dirección Incorrecta para la guía {guia}. El paquete ha regresado al Centro de Distribución de Destino. Soporte contactará al cliente al teléfono {paquete.telefono_cliente} en menos de 4 horas.",
+                "estado_actual": paquete.estado
+            }
+        elif limpio == "paquete_danado":
+            return {
+                "mensaje": f"Paquete Dañado para la guía {guia}. El paquete ha regresado al Centro de Distribución de Destino para su valoración y reporte por Supervisor de Calidad.",
+                "estado_actual": paquete.estado
+            }
+        elif limpio == "perdida":
+            return {
+                "mensaje": f"Incidencia de Pérdida para la guía {guia}. Se ha iniciado el proceso de reclamación y compensación para el cliente.",
+                "estado_actual": paquete.estado
+            }
+        elif limpio == "rechazo":
+            return {
+                "mensaje": f"Rechazo para el paquete con la guía {guia}. El paquete se ha regresado al origen y se aplicará el cobro correspondiente por devolución.",
+                "estado_actual": paquete.estado
+            }
             
-    except ValueError:
-        raise HTTPException(status_code=404, detail="No se encontró un paquete con esa guía.")
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except InvalidStateTransition as e:
+        raise HTTPException(status_code=409, detail=str(e))
 
 
 @app.post("/paquetes/{guia}/entregar")
-def completar_entrega(guia: str, datos: EntregaRequest):
-    """Destino: Entrega exitosa y registro de evidencia digital POD (Firma/Foto)."""
+def completar_entrega(guia: str, datos: EntregaRequest, db: Session = Depends(get_db)):
     try:
-        paquete = service.completar_entrega_paquete(guia, datos.evidencia)
-        return {
-            "mensaje": f"¡Entrega exitosa para la guía {paquete.guia.codigo}! Evidencia registrada correctamente."
-        }
+        paquete = service.completar_entrega_paquete(db, guia, datos.evidencia)
+        return {"mensaje": f"¡Entrega exitosa para la guía {paquete.guia}!"}
     except SinEvidenciaPOD:
-        raise HTTPException(
-            status_code=422, 
-            detail="No se puede cerrar la entrega sin adjuntar la firma o fotografía requerida."
-        )
+        raise HTTPException(status_code=422, detail="No se puede cerrar la entrega sin la evidencia requerida.")
     except (InvalidStateTransition, CargoBoxDomainError) as e:
         raise HTTPException(status_code=409, detail=str(e))
     except ValueError:
