@@ -1,0 +1,466 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "CargoBox API",
+    "description": "API oficial de CargoBox",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Inicio",
+        "operationId": "inicio__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/paquetes/": {
+      "post": {
+        "summary": "Registrar Paquete",
+        "operationId": "registrar_paquete_paquetes__post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistroPaqueteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/paquetes/{guia}/clasificar": {
+      "post": {
+        "summary": "Clasificar Paquete",
+        "operationId": "clasificar_paquete_paquetes__guia__clasificar_post",
+        "parameters": [
+          {
+            "name": "guia",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Guia"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/paquetes/{guia}/despachar-transito": {
+      "post": {
+        "summary": "Despachar Transito",
+        "operationId": "despachar_transito_paquetes__guia__despachar_transito_post",
+        "parameters": [
+          {
+            "name": "guia",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Guia"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/paquetes/{guia}/centro-destino": {
+      "post": {
+        "summary": "Llegar Centro Destino",
+        "operationId": "llegar_centro_destino_paquetes__guia__centro_destino_post",
+        "parameters": [
+          {
+            "name": "guia",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Guia"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/paquetes/{guia}/iniciar-reparto": {
+      "post": {
+        "summary": "Iniciar Reparto",
+        "operationId": "iniciar_reparto_paquetes__guia__iniciar_reparto_post",
+        "parameters": [
+          {
+            "name": "guia",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Guia"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/paquetes/{guia}/intentos-fallidos": {
+      "post": {
+        "summary": "Registrar Intento Fallido",
+        "description": "Registra intento fallido. Al llegar al 2do intento, el paquete se transfiere al Punto de Recolección / Resguardo más cercano.",
+        "operationId": "registrar_intento_fallido_paquetes__guia__intentos_fallidos_post",
+        "parameters": [
+          {
+            "name": "guia",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Guia"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/paquetes/{guia}/incidencias": {
+      "post": {
+        "summary": "Registrar Incidencia Entrega",
+        "description": "Escribe la incidencia. Opciones válidas:\n- 'direccion_incorrecta' \n- 'paquete_danado' \n- 'perdida' \n- 'rechazo'",
+        "operationId": "registrar_incidencia_entrega_paquetes__guia__incidencias_post",
+        "parameters": [
+          {
+            "name": "guia",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Guia"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncidenciaRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/paquetes/{guia}/entregar": {
+      "post": {
+        "summary": "Completar Entrega",
+        "operationId": "completar_entrega_paquetes__guia__entregar_post",
+        "parameters": [
+          {
+            "name": "guia",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Guia"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntregaRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "EntregaRequest": {
+        "properties": {
+          "evidencia": {
+            "type": "string",
+            "title": "Evidencia",
+            "description": "Escribe la evidencia (Firma digital / Fotografía del paquete)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "evidencia"
+        ],
+        "title": "EntregaRequest"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "IncidenciaRequest": {
+        "properties": {
+          "tipo_incidencia": {
+            "type": "string",
+            "title": "Tipo Incidencia",
+            "description": "Escribe EXACTAMENTE una de estas opciones: 'direccion_incorrecta', 'paquete_danado', 'perdida', 'rechazo'"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tipo_incidencia"
+        ],
+        "title": "IncidenciaRequest"
+      },
+      "RegistroPaqueteRequest": {
+        "properties": {
+          "peso_kg": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Peso Kg"
+          },
+          "largo_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Largo M"
+          },
+          "ancho_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Ancho M"
+          },
+          "alto_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Alto M"
+          },
+          "telefono_cliente": {
+            "type": "string",
+            "pattern": "^\\d{10}$",
+            "title": "Telefono Cliente"
+          }
+        },
+        "type": "object",
+        "required": [
+          "peso_kg",
+          "largo_m",
+          "ancho_m",
+          "alto_m",
+          "telefono_cliente"
+        ],
+        "title": "RegistroPaqueteRequest"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
